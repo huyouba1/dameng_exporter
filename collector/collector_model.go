@@ -80,6 +80,9 @@ const (
 	// 数据字典缓存指标
 	dmdbms_dict_cache_total string = "dmdbms_dict_cache_total"
 
+	// 数据库节点类型
+	dmdbms_node_type_info string = "dmdbms_node_type_info"
+
 	dmdb_up string = "dmdb_up"
 )
 

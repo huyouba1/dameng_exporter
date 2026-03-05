@@ -26,6 +26,7 @@ type DataSourcePool struct {
 	mu              sync.RWMutex             // 读写锁
 	healthy         atomic.Bool              // 健康状态标志
 	lastHealthCheck atomic.Int64             // 最近一次健康检查的时间戳（Unix 秒）
+	nodeType        string                   // 数据库节点类型（DW/DSC/DPC/DEFAULT）
 }
 
 // markHealthy 更新健康状态为健康并记录时间
@@ -58,6 +59,33 @@ func (p *DataSourcePool) IsHealthy() bool {
 		return false
 	}
 	return p.healthy.Load()
+}
+
+// SetNodeType 设置数据库节点类型
+func (p *DataSourcePool) SetNodeType(nodeType string) {
+	if p == nil {
+		return
+	}
+	if nodeType == "" {
+		nodeType = string(NodeTypeDefault)
+	}
+	p.mu.Lock()
+	p.nodeType = nodeType
+	p.mu.Unlock()
+}
+
+// GetNodeType 获取数据库节点类型
+func (p *DataSourcePool) GetNodeType() string {
+	if p == nil {
+		return string(NodeTypeDefault)
+	}
+	p.mu.RLock()
+	nodeType := p.nodeType
+	p.mu.RUnlock()
+	if nodeType == "" {
+		return string(NodeTypeDefault)
+	}
+	return nodeType
 }
 
 // LastHealthCheck 获取最近一次健康检查的时间
@@ -244,6 +272,10 @@ func (m *DBPoolManager) createPool(dsConfig *config.DataSourceConfig) (*DataSour
 		Config: dsConfig,
 		Labels: dsConfig.ParseLabels(),
 	}
+
+	// 步骤5.1：检测数据库节点类型（不影响连接成功与否）
+	nodeType := DetectNodeType(db, timeoutSeconds, dsConfig.Name)
+	pool.SetNodeType(string(nodeType))
 	pool.markHealthy(time.Now())
 
 	// 步骤6：追加标准化标签，便于指标及日志 tracing

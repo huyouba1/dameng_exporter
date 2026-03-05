@@ -168,6 +168,11 @@ FROM (
 	//查询dual表
 	QueryDualInfoSql = `SELECT /*+DM_EXPORTER*/ 1 FROM DUAL;`
 
+	// 数据库节点类型检测（DW/DSC/DPC）
+	QueryCheckDwNodeTypeSql  = `SELECT /*+DAMENG_EXPORTER*/ count(*) CNT FROM v$dm_mal_ini`
+	QueryCheckDscNodeTypeSql = `SELECT /*+DAMENG_EXPORTER*/ count(*) CNT FROM V$DSC_EP_INFO`
+	QueryCheckDpcNodeTypeSql = `SELECT /*+DAMENG_EXPORTER*/ count(1) DPC_COUNT FROM DPC_INSTANCE`
+
 	// 回滚段查询
 	QueryPurgeInfoSqlStr = `SELECT /*+DAMENG_EXPORTER*/ OBJ_NUM,IS_RUNNING,PURG_FOR_TS from V$PURGE`
 
