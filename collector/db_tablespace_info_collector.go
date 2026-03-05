@@ -27,8 +27,8 @@ func (c *TableSpaceInfoCollector) SetDataSource(name string) {
 
 type TableSpaceInfo struct {
 	TablespaceName string
-	TotalSize      float64
-	FreeSize       float64
+	TotalSize      float64 // 对应 ASSIGNED_TOTAL_MB
+	FreeSize       float64 // 对应 ASSIGNED_FREE_MB
 }
 
 func NewTableSpaceInfoCollector(db *sql.DB) MetricCollector {
@@ -95,10 +95,28 @@ func (c *TableSpaceInfoCollector) Collect(ch chan<- prometheus.Metric) {
 
 	for rows.Next() {
 		var info TableSpaceInfo
-		if err := rows.Scan(&info.TablespaceName, &info.TotalSize, &info.FreeSize); err != nil {
+		var assignedTotalMB float64
+		var assignedFreeMB float64
+		var files int64
+		var usedSzRt float64
+		var extensMb float64
+		var totalFreePct float64
+		var actUsedRt float64
+		if err := rows.Scan(
+			&info.TablespaceName,
+			&files,
+			&assignedTotalMB,
+			&assignedFreeMB,
+			&usedSzRt,
+			&extensMb,
+			&totalFreePct,
+			&actUsedRt,
+		); err != nil {
 			logger.Logger.Error(fmt.Sprintf("[%s] Error scanning row", c.dataSource), zap.Error(err))
 			continue
 		}
+		info.TotalSize = assignedTotalMB
+		info.FreeSize = assignedFreeMB
 		tablespaceInfos = append(tablespaceInfos, info)
 	}
 	if err := rows.Err(); err != nil {
