@@ -41,3 +41,11 @@ groups:
       annotations:
         description: "数据源：{{ $labels.datasource }} 活动连接数过高，当前值：{{ printf \"%.0f\" $value }}"
         summary: "数据源：{{ $labels.datasource }}:活动连接数{{ printf \"%.0f\" $value }}，超过50，请确认是否正常"
+    - alert: 数据库用户被锁定
+      expr: dmdbms_user_list_info == 1
+      for: 15s
+      labels:
+        severity: 警告
+      annotations:
+        description: "数据源：{{ $labels.datasource }} 用户：{{ $labels.username }} 账号已锁定"
+        summary: "数据源：{{ $labels.datasource }}:用户{{ $labels.username }}账号被锁定，请核实"

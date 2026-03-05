@@ -46,15 +46,15 @@ func DetectNodeType(db *sql.DB, timeoutSeconds int, dataSource string) NodeType 
 	} else {
 		logger.Logger.Warnf("[%s] DSC节点检测失败: %v", dataSource, err)
 	}
-
-	if ok, err := queryCountGreaterThanZero(db, timeoutSeconds, config.QueryCheckDpcNodeTypeSql); err == nil {
-		if ok {
-			logNodeTypeDetected(dataSource, NodeTypeDPC, time.Since(start))
-			return NodeTypeDPC
-		}
-	} else {
-		logger.Logger.Warnf("[%s] DPC节点检测失败: %v", dataSource, err)
-	}
+	/*
+		if ok, err := queryCountGreaterThanZero(db, timeoutSeconds, config.QueryCheckDpcNodeTypeSql); err == nil {
+			if ok {
+				logNodeTypeDetected(dataSource, NodeTypeDPC, time.Since(start))
+				return NodeTypeDPC
+			}
+		} else {
+			logger.Logger.Warnf("[%s] DPC节点检测失败: %v", dataSource, err)
+		}*/
 
 	logNodeTypeDetected(dataSource, NodeTypeDefault, time.Since(start))
 	return NodeTypeDefault

@@ -133,6 +133,17 @@ metricstype = { total_size_mb = "gauge" }
 # dmdbms_test_table_metrics_total_size_mb{datasource="master",name="TEMP"} 138
 
 # ================================================================================
+# 自定义: 事务等待超过1小时数量
+# 说明：统计等待时间超过1小时（毫秒）的事务等待条目数
+# ================================================================================
+[[metric]]
+context = "trxwait_over_1h"
+labels = []
+request = "SELECT COUNT(*) AS wait_count FROM V$TRXWAIT WHERE WAIT_TIME > 60*60*1000"
+metricsdesc = { wait_count = "等待时间超过1小时的事务等待数量" }
+metricstype = { wait_count = "gauge" }
+
+# ================================================================================
 # 💡 如何添加自定义指标
 # ================================================================================
 #
