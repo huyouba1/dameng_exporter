@@ -1,0 +1,43 @@
+groups:
+- name: DatabaseStatus_MonitoringAlarm
+  rules:
+    - alert: 表空间使用率超过80%
+      expr: ((dmdbms_tablespace_size_total_info{tablespace_name!~"SYSTEM|TEMP|ROLL"} - dmdbms_tablespace_size_free_info{tablespace_name!~"SYSTEM|TEMP|ROLL"}) / dmdbms_tablespace_size_total_info{tablespace_name!~"SYSTEM|TEMP|ROLL"}) * 100 > 80 and ((dmdbms_tablespace_size_total_info{tablespace_name!~"SYSTEM|TEMP|ROLL"} - dmdbms_tablespace_size_free_info{tablespace_name!~"SYSTEM|TEMP|ROLL"}) / dmdbms_tablespace_size_total_info{tablespace_name!~"SYSTEM|TEMP|ROLL"}) * 100 <= 90
+      for: 15s
+      labels:
+        severity: 警告
+      annotations:
+        description: "数据源：{{ $labels.datasource }} 表空间：{{ $labels.tablespace_name }} 使用率过高，当前值：{{ printf \"%.2f\" $value }}%"
+        summary: "数据源：{{ $labels.datasource }}:表空间{{ $labels.tablespace_name }}使用率{{ printf \"%.2f\" $value }}%，超过80%"
+    - alert: 表空间使用率超过90%
+      expr: ((dmdbms_tablespace_size_total_info{tablespace_name!~"SYSTEM|TEMP|ROLL"} - dmdbms_tablespace_size_free_info{tablespace_name!~"SYSTEM|TEMP|ROLL"}) / dmdbms_tablespace_size_total_info{tablespace_name!~"SYSTEM|TEMP|ROLL"}) * 100 > 90
+      for: 15s
+      labels:
+        severity: 严重
+      annotations:
+        description: "数据源：{{ $labels.datasource }} 表空间：{{ $labels.tablespace_name }} 使用率过高，当前值：{{ printf \"%.2f\" $value }}%"
+        summary: "数据源：{{ $labels.datasource }}:表空间{{ $labels.tablespace_name }}使用率{{ printf \"%.2f\" $value }}%，超过90%"
+    - alert: 大表空间剩余不足500G
+      expr: dmdbms_tablespace_size_free_info{tablespace_name!~"SYSTEM|TEMP|ROLL"} < 500*1024 and on(datasource,env,region,cluster,tablespace_name) dmdbms_tablespace_size_total_info{tablespace_name!~"SYSTEM|TEMP|ROLL"} >= 4*1024*1024
+      for: 15s
+      labels:
+        severity: 警告
+      annotations:
+        description: "数据源：{{ $labels.datasource }} 表空间：{{ $labels.tablespace_name }} 总量超过4T且剩余不足500G，当前剩余：{{ printf \"%.0f\" $value }}MB"
+        summary: "数据源：{{ $labels.datasource }}:表空间{{ $labels.tablespace_name }}剩余{{ printf \"%.0f\" $value }}MB，低于500G"
+    - alert: 大表空间剩余不足300G
+      expr: dmdbms_tablespace_size_free_info{tablespace_name!~"SYSTEM|TEMP|ROLL"} < 300*1024 and on(datasource,env,region,cluster,tablespace_name) dmdbms_tablespace_size_total_info{tablespace_name!~"SYSTEM|TEMP|ROLL"} >= 4*1024*1024
+      for: 15s
+      labels:
+        severity: 严重
+      annotations:
+        description: "数据源：{{ $labels.datasource }} 表空间：{{ $labels.tablespace_name }} 总量超过4T且剩余不足300G，当前剩余：{{ printf \"%.0f\" $value }}MB"
+        summary: "数据源：{{ $labels.datasource }}:表空间{{ $labels.tablespace_name }}剩余{{ printf \"%.0f\" $value }}MB，低于300G"
+    - alert: 活动连接数过高
+      expr: dmdbms_session_type_info{session_type="ACTIVE"} > 50
+      for: 15s
+      labels:
+        severity: 警告
+      annotations:
+        description: "数据源：{{ $labels.datasource }} 活动连接数过高，当前值：{{ printf \"%.0f\" $value }}"
+        summary: "数据源：{{ $labels.datasource }}:活动连接数{{ printf \"%.0f\" $value }}，超过50，请确认是否正常"
