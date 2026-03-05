@@ -237,9 +237,6 @@ func (m *DBPoolManager) createPool(dsConfig *config.DataSourceConfig) (*DataSour
 		return nil, fmt.Errorf("测试数据库连接失败: %w", err)
 	}
 
-	// 解析 host、port，供后续标签注入使用
-	cleanHost, hostLabel, portLabel := normalizeDBHost(dsConfig.DbHost)
-
 	// 步骤5：封装成 DataSourcePool 统一管理
 	pool := &DataSourcePool{
 		Name:   dsConfig.Name,
@@ -250,13 +247,9 @@ func (m *DBPoolManager) createPool(dsConfig *config.DataSourceConfig) (*DataSour
 	pool.markHealthy(time.Now())
 
 	// 步骤6：追加标准化标签，便于指标及日志 tracing
-	datasourceLabel := dsConfig.Name
-	hostForDatasource := formatHostPortLabel(hostLabel, portLabel)
-	if hostForDatasource == "" {
-		hostForDatasource = cleanHost
-	}
-	if hostForDatasource != "" {
-		datasourceLabel = fmt.Sprintf("%s@%s", dsConfig.Name, hostForDatasource)
+	datasourceLabel := BuildDatasourceLabel(dsConfig.Name, dsConfig.DbHost)
+	if datasourceLabel == "" {
+		datasourceLabel = dsConfig.Name
 	}
 	pool.Labels["datasource"] = datasourceLabel
 
@@ -356,6 +349,25 @@ func formatHostPortLabel(host, port string) string {
 		return fmt.Sprintf("[%s]:%s", host, port)
 	}
 	return fmt.Sprintf("%s:%s", host, port)
+}
+
+// BuildDatasourceLabel 构建数据源标签值，规则与连接池创建时保持一致
+func BuildDatasourceLabel(name, dbHost string) string {
+	cleanHost, hostLabel, portLabel := normalizeDBHost(dbHost)
+
+	datasourceLabel := name
+	hostForDatasource := formatHostPortLabel(hostLabel, portLabel)
+	if hostForDatasource == "" {
+		hostForDatasource = cleanHost
+	}
+	if hostForDatasource != "" {
+		if datasourceLabel == "" {
+			datasourceLabel = hostForDatasource
+		} else {
+			datasourceLabel = fmt.Sprintf("%s@%s", name, hostForDatasource)
+		}
+	}
+	return datasourceLabel
 }
 
 // noteFailedDataSourceLocked 在持有锁的情况下登记失败数据源

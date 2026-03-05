@@ -50,12 +50,20 @@ func (c *DatasourceHealthCollector) Collect(ch chan<- prometheus.Metric) {
 				value = 1.0
 			}
 
-			ch <- prometheus.MustNewConstMetric(
+			labels := ds.ParseLabels()
+			datasourceLabel := db.BuildDatasourceLabel(ds.Name, ds.DbHost)
+			if datasourceLabel == "" {
+				datasourceLabel = ds.Name
+			}
+			labels["datasource"] = datasourceLabel
+
+			metric := prometheus.MustNewConstMetric(
 				c.desc,
 				prometheus.GaugeValue,
 				value,
-				ds.Name,
+				datasourceLabel,
 			)
+			ch <- NewMetricWrapper(metric, NewLabelInjectorFromLabels(labels, ds.Name))
 		}
 		return
 	}
@@ -64,11 +72,18 @@ func (c *DatasourceHealthCollector) Collect(ch chan<- prometheus.Metric) {
 		if pool == nil {
 			continue
 		}
-		ch <- prometheus.MustNewConstMetric(
+		datasourceLabel := pool.Name
+		if pool.Labels != nil {
+			if dsLabel, ok := pool.Labels["datasource"]; ok && dsLabel != "" {
+				datasourceLabel = dsLabel
+			}
+		}
+		metric := prometheus.MustNewConstMetric(
 			c.desc,
 			prometheus.GaugeValue,
 			1,
-			pool.Name,
+			datasourceLabel,
 		)
+		ch <- NewMetricWrapper(metric, NewLabelInjectorFromLabels(pool.Labels, pool.Name))
 	}
 }
