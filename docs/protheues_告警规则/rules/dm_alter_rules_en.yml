@@ -55,8 +55,16 @@ groups:
     labels:
       severity: WARNING
     annotations:
-      description: "数据源：{{ $labels.datasource }} 数据库存在事务阻塞"
-      summary: "数据源：{{ $labels.datasource }}:存在事务阻塞等待，请及时处理"
+      description: "数据源：{{ $labels.datasource }} 数据库存在事务阻塞，当前阻塞数：{{ printf \"%.0f\" $value }}"
+      summary: "数据源：{{ $labels.datasource }}:存在事务阻塞等待，当前阻塞数{{ printf \"%.0f\" $value }}，请及时处理"
+  - alert: DatabaseUserLocked
+    expr: dmdbms_user_list_info == 1
+    for: 15s
+    labels:
+      severity: WARNING
+    annotations:
+      description: "数据源：{{ $labels.datasource }} 用户：{{ $labels.username }} 账号已锁定"
+      summary: "数据源：{{ $labels.datasource }}:用户{{ $labels.username }}账号被锁定，请核实"
   - alert: CpuUsageIsTooHigh
     expr: 100 * (1 - avg(irate(node_cpu_seconds_total{mode="idle"}[2m])) by(instance)) > 80
     for: 15s
@@ -79,8 +87,8 @@ groups:
     labels:
       severity: WARNING
     annotations:
-      description: "数据源：{{ $labels.datasource }} 内存池使用率过高"
-      summary: "数据源：{{ $labels.datasource }}:内存池使用率过高，超过80%"
+      description: "数据源：{{ $labels.datasource }} 内存池使用率过高，当前值：{{ printf \"%.2f\" $value }}%"
+      summary: "数据源：{{ $labels.datasource }}:内存池使用率过高，当前值{{ printf \"%.2f\" $value }}%，超过80%"
   - alert: HighDiskPartitionUsage
     expr: (node_filesystem_size_bytes{fstype=~"ext.*|xfs|nfs",mountpoint !~".*(pod|docker).*"}-node_filesystem_free_bytes{fstype=~"ext.*|xfs|nfs",mountpoint !~".*(pod|docker).*"}) *100/(node_filesystem_avail_bytes {fstype=~"ext.*|xfs|nfs",mountpoint !~".*(pod|docker).*"}+(node_filesystem_size_bytes{fstype=~"ext.*|xfs|nfs",mountpoint !~".*(pod|docker).*"}-node_filesystem_free_bytes{fstype=~"ext.*|xfs|nfs",mountpoint !~".*(pod|docker).*"})) >90
     for: 15s
@@ -95,21 +103,21 @@ groups:
     labels:
       severity: WARNING
     annotations:
-      description: "数据源：{{ $labels.datasource }} 备库重做日志内存堆积使用率超过95%"
-      summary: "数据源：{{ $labels.datasource }}:备库重做日志内存堆积使用率超95%，请确认是否正常"
+      description: "数据源：{{ $labels.datasource }} 备库重做日志内存堆积使用率过高，当前值：{{ printf \"%.2f\" $value }}%"
+      summary: "数据源：{{ $labels.datasource }}:备库重做日志内存堆积使用率{{ printf \"%.2f\" $value }}%，超过95%，请确认是否正常"
   - alert: DmdbmsRedoLogThreadsIsTooHigh
     expr: (((dmdbms_rapply_sys_task_num * 100) / on(datasource,env,region,cluster) dmdbms_parameter_info{param_name="REDOS_BUF_NUM"}) > 95) and on(datasource,env,region,cluster) dmdbms_parameter_info{param_name="REDOS_BUF_NUM"} > 0
     for: 15s
     labels:
       severity: WARNING
     annotations:
-      description: "数据源：{{ $labels.datasource }} 备库重做日志线程数使用率超过95%"
-      summary: "数据源：{{ $labels.datasource }}:备库重做日志线程数使用率超95%，请确认是否正常"
+      description: "数据源：{{ $labels.datasource }} 备库重做日志线程数使用率过高，当前值：{{ printf \"%.2f\" $value }}%"
+      summary: "数据源：{{ $labels.datasource }}:备库重做日志线程数使用率{{ printf \"%.2f\" $value }}%，超过95%，请确认是否正常"
   - alert: TableSpaceUtilizationIsTooHigh
     expr: ((dmdbms_tablespace_size_total_info{tablespace_name!~"SYSTEM|TEMP|ROLL"} - dmdbms_tablespace_size_free_info{tablespace_name!~"SYSTEM|TEMP|ROLL"}) / dmdbms_tablespace_size_total_info{tablespace_name!~"SYSTEM|TEMP|ROLL"}) * 100 > 95
     for: 15s
     labels:
       severity: WARNING
     annotations:
-      description: "数据源：{{ $labels.datasource }} 存在表空间使用率超过95%"
-      summary: "数据源：{{ $labels.datasource }}: 存在表空间使用率超过95%，请核实"
+      description: "数据源：{{ $labels.datasource }} 存在表空间使用率过高，当前值：{{ printf \"%.2f\" $value }}%"
+      summary: "数据源：{{ $labels.datasource }}:存在表空间使用率{{ printf \"%.2f\" $value }}%，超过95%，请核实"
