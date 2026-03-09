@@ -114,10 +114,26 @@ groups:
       description: "数据源：{{ $labels.datasource }} 备库重做日志线程数使用率过高，当前值：{{ printf \"%.2f\" $value }}%"
       summary: "数据源：{{ $labels.datasource }}:备库重做日志线程数使用率{{ printf \"%.2f\" $value }}%，超过95%，请确认是否正常"
   - alert: 表空间使用率超过95%
-    expr: ((dmdbms_tablespace_size_total_info{tablespace_name!~"SYSTEM|TEMP|ROLL"} - dmdbms_tablespace_size_free_info{tablespace_name!~"SYSTEM|TEMP|ROLL"}) / dmdbms_tablespace_size_total_info{tablespace_name!~"SYSTEM|TEMP|ROLL"}) * 100 > 95
+    expr: dmdbms_tablespace_size_act_used_rt_info{tablespace_name!~"SYSTEM|TEMP|ROLL"} > 95
     for: 15s
     labels:
       severity: 警告
     annotations:
       description: "数据源：{{ $labels.datasource }} 存在表空间使用率过高，当前值：{{ printf \"%.2f\" $value }}%"
       summary: "数据源：{{ $labels.datasource }}:存在表空间使用率{{ printf \"%.2f\" $value }}%，超过95%，请核实"
+  - alert: ASM磁盘组使用率超过80%
+    expr: dmdbms_asmgroup_size_used_pct_info > 80 and dmdbms_asmgroup_size_used_pct_info <= 90
+    for: 15s
+    labels:
+      severity: 警告
+    annotations:
+      description: "数据源：{{ $labels.datasource }} ASM磁盘组：{{ $labels.group_name }} 使用率过高，当前值：{{ printf \"%.2f\" $value }}%"
+      summary: "数据源：{{ $labels.datasource }}:ASM磁盘组{{ $labels.group_name }}使用率{{ printf \"%.2f\" $value }}%，超过80%"
+  - alert: ASM磁盘组使用率超过90%
+    expr: dmdbms_asmgroup_size_used_pct_info > 90
+    for: 15s
+    labels:
+      severity: 严重
+    annotations:
+      description: "数据源：{{ $labels.datasource }} ASM磁盘组：{{ $labels.group_name }} 使用率过高，当前值：{{ printf \"%.2f\" $value }}%"
+      summary: "数据源：{{ $labels.datasource }}:ASM磁盘组{{ $labels.group_name }}使用率{{ printf \"%.2f\" $value }}%，超过90%"
