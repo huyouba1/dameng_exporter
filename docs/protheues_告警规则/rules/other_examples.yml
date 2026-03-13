@@ -8,7 +8,8 @@ groups:
         severity: 警告
       annotations:
         description: "数据源：{{ $labels.datasource }} 表空间：{{ $labels.tablespace_name }} 使用率过高，当前值：{{ printf \"%.2f\" $value }}%"
-        summary: "数据源：{{ $labels.datasource }}:表空间{{ $labels.tablespace_name }}使用率{{ printf \"%.2f\" $value }}%，超过80%"
+        summary: "数据源：{{ $labels.datasource }}：表空间 {{ $labels.tablespace_name }} 使用率 {{ printf \"%.2f\" $value }}%，超过 80%"
+
     - alert: 表空间使用率超过90%
       expr: dmdbms_tablespace_size_act_used_rt_info{tablespace_name!~"SYSTEM|TEMP|ROLL"} > 90
       for: 15s
@@ -16,7 +17,8 @@ groups:
         severity: 严重
       annotations:
         description: "数据源：{{ $labels.datasource }} 表空间：{{ $labels.tablespace_name }} 使用率过高，当前值：{{ printf \"%.2f\" $value }}%"
-        summary: "数据源：{{ $labels.datasource }}:表空间{{ $labels.tablespace_name }}使用率{{ printf \"%.2f\" $value }}%，超过90%"
+        summary: "数据源：{{ $labels.datasource }}：表空间 {{ $labels.tablespace_name }} 使用率 {{ printf \"%.2f\" $value }}%，超过 90%"
+
     - alert: ASM磁盘组使用率超过80%
       expr: dmdbms_asmgroup_size_used_pct_info > 80 and dmdbms_asmgroup_size_used_pct_info <= 90
       for: 15s
@@ -24,7 +26,8 @@ groups:
         severity: 警告
       annotations:
         description: "数据源：{{ $labels.datasource }} ASM磁盘组：{{ $labels.group_name }} 使用率过高，当前值：{{ printf \"%.2f\" $value }}%"
-        summary: "数据源：{{ $labels.datasource }}:ASM磁盘组{{ $labels.group_name }}使用率{{ printf \"%.2f\" $value }}%，超过80%"
+        summary: "数据源：{{ $labels.datasource }}：ASM磁盘组 {{ $labels.group_name }} 使用率 {{ printf \"%.2f\" $value }}%，超过 80%"
+
     - alert: ASM磁盘组使用率超过90%
       expr: dmdbms_asmgroup_size_used_pct_info > 90
       for: 15s
@@ -32,23 +35,26 @@ groups:
         severity: 严重
       annotations:
         description: "数据源：{{ $labels.datasource }} ASM磁盘组：{{ $labels.group_name }} 使用率过高，当前值：{{ printf \"%.2f\" $value }}%"
-        summary: "数据源：{{ $labels.datasource }}:ASM磁盘组{{ $labels.group_name }}使用率{{ printf \"%.2f\" $value }}%，超过90%"
+        summary: "数据源：{{ $labels.datasource }}：ASM磁盘组 {{ $labels.group_name }} 使用率 {{ printf \"%.2f\" $value }}%，超过 90%"
+
     - alert: 大表空间剩余不足500G
       expr: dmdbms_tablespace_size_free_info{tablespace_name!~"SYSTEM|TEMP|ROLL"} < 500*1024 and on(datasource,env,region,cluster,tablespace_name) dmdbms_tablespace_size_total_info{tablespace_name!~"SYSTEM|TEMP|ROLL"} >= 4*1024*1024
       for: 15s
       labels:
         severity: 警告
       annotations:
-        description: "数据源：{{ $labels.datasource }} 表空间：{{ $labels.tablespace_name }} 总量超过4T且剩余不足500G，当前剩余：{{ printf \"%.0f\" $value }}MB"
-        summary: "数据源：{{ $labels.datasource }}:表空间{{ $labels.tablespace_name }}剩余{{ printf \"%.0f\" $value }}MB，低于500G"
+        description: "数据源：{{ $labels.datasource }} 表空间：{{ $labels.tablespace_name }} 总量超过 4T 且剩余不足 500G，当前剩余：{{ printf \"%.0f\" $value }}MB"
+        summary: "数据源：{{ $labels.datasource }}：表空间 {{ $labels.tablespace_name }} 剩余 {{ printf \"%.0f\" $value }}MB，低于 500G"
+
     - alert: 大表空间剩余不足300G
       expr: dmdbms_tablespace_size_free_info{tablespace_name!~"SYSTEM|TEMP|ROLL"} < 300*1024 and on(datasource,env,region,cluster,tablespace_name) dmdbms_tablespace_size_total_info{tablespace_name!~"SYSTEM|TEMP|ROLL"} >= 4*1024*1024
       for: 15s
       labels:
         severity: 严重
       annotations:
-        description: "数据源：{{ $labels.datasource }} 表空间：{{ $labels.tablespace_name }} 总量超过4T且剩余不足300G，当前剩余：{{ printf \"%.0f\" $value }}MB"
-        summary: "数据源：{{ $labels.datasource }}:表空间{{ $labels.tablespace_name }}剩余{{ printf \"%.0f\" $value }}MB，低于300G"
+        description: "数据源：{{ $labels.datasource }} 表空间：{{ $labels.tablespace_name }} 总量超过 4T 且剩余不足 300G，当前剩余：{{ printf \"%.0f\" $value }}MB"
+        summary: "数据源：{{ $labels.datasource }}：表空间 {{ $labels.tablespace_name }} 剩余 {{ printf \"%.0f\" $value }}MB，低于 300G"
+
     - alert: 活动连接数过高
       expr: dmdbms_session_type_info{session_type="ACTIVE"} > 50
       for: 15s
@@ -56,7 +62,8 @@ groups:
         severity: 警告
       annotations:
         description: "数据源：{{ $labels.datasource }} 活动连接数过高，当前值：{{ printf \"%.0f\" $value }}"
-        summary: "数据源：{{ $labels.datasource }}:活动连接数{{ printf \"%.0f\" $value }}，超过50，请确认是否正常"
+        summary: "数据源：{{ $labels.datasource }}：活动连接数 {{ printf \"%.0f\" $value }}，超过 50，请确认是否正常"
+
     - alert: 数据库用户被锁定
       expr: dmdbms_user_list_info == 1
       for: 15s
@@ -64,4 +71,22 @@ groups:
         severity: 警告
       annotations:
         description: "数据源：{{ $labels.datasource }} 用户：{{ $labels.username }} 账号已锁定"
-        summary: "数据源：{{ $labels.datasource }}:用户{{ $labels.username }}账号被锁定，请核实"
+        summary: "数据源：{{ $labels.datasource }}：用户 {{ $labels.username }} 账号被锁定，请核实"
+
+    - alert: 达梦实例模式发生切换
+      expr: changes(dmdbms_mode_info[2m]) > 0
+      for: 0s
+      labels:
+        severity: 警告
+      annotations:
+        description: "数据源：{{ $labels.datasource }} 实例模式在最近 2 分钟内发生变化，请确认是否为主备切换或角色切换。"
+        summary: "数据源：{{ $labels.datasource }} 检测到实例模式切换"
+
+    - alert: 达梦实例模式指标缺失
+      expr: min_over_time(dmdb_up[3m]) == 1 unless on(datasource,env,region,cluster) max_over_time(dmdbms_mode_info[3m])
+      for: 0s
+      labels:
+        severity: 警告
+      annotations:
+        description: "数据源：{{ $labels.datasource }} 在最近 3 分钟内未采集到 dmdbms_mode_info，可能是接口异常、查询失败或采集链路问题。"
+        summary: "数据源：{{ $labels.datasource }} 的实例模式指标缺失"

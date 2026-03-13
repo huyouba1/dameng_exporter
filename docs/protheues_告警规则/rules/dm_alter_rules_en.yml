@@ -17,14 +17,16 @@ groups:
     annotations:
       description: "数据源：{{ $labels.datasource }} 数据库实例不可用"
       summary: "数据源：{{ $labels.datasource }}:dmdb_up=0，数据库实例宕机，请立即处理"
-  - alert: ClusterSwitchingOccurs
-    expr: dmdbms_switching_occurs == 0
-    for: 15s
+
+  - alert: NodeSwitchingOccurs
+    expr: changes(dmdbms_mode_info[2m]) > 0
+    for: 0s
     labels:
       severity: ERROR
     annotations:
-      description: "数据源：{{ $labels.datasource }} 数据库模式切换"
-      summary: "数据源：{{ $labels.datasource }}:数据库发生模式切换，疑似发生集群切换请核实"
+      description: "数据源：{{ $labels.datasource }} 实例模式在最近 2 分钟内发生变化，请确认是否为主备切换或角色切换。"
+      summary: "数据源：{{ $labels.datasource }} 检测到实例模式切换"
+
   - alert: DatabaseStateTransition
     expr: dmdbms_status_info != 1
     for: 15s
