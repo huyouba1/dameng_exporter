@@ -147,7 +147,13 @@ FROM (
                        A.PROFILE,
                        TO_CHAR(A.CREATED,'YYYY-MM-DD HH24:MI:SS') AS CREATE_TIME
                   FROM DBA_USERS A, 
-                       SYSUSERS B 
+                       (SELECT T_USERS.ID,
+       RN_FLAG
+  FROM SYSUSER$ T_USERS
+ WHERE T_USERS.ID = SYS_CONTEXT('USERENV', 'CURRENT_USERID')
+    OR USER_IS_ADMIN(SYS_CONTEXT('USERENV', 'CURRENT_USERID')) = 1
+    OR (SYS_CONTEXT('USERENV', 'CURRENT_USERTYPE') NOT IN (0,
+                                                           3))) B 
                  WHERE A.USER_ID=B.ID and A.USERNAME NOT IN('SYS','SYSSSO','SYSAUDITOR')`
 	//查询数据库授权信息
 	QueryDbGrantInfoSql = `SELECT /*+DM_EXPORTER*/ CASE WHEN expired_date IS NULL THEN '' ELSE TO_CHAR(expired_date, 'yyyyMMdd')  END AS expired_date FROM V$LICENSE`
