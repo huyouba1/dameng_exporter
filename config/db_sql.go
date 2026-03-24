@@ -137,18 +137,17 @@ FROM (
 	QueryRlogFileListSql = "SELECT /*+DM_EXPORTER*/ FILE_ID,PATH,CREATE_TIME,RLOG_SIZE FROM V$RLOGFILE"
 	//查询用户信息
 	QueryUserInfoSqlStr = `SELECT 
-                       /*+DM_EXPORTER*/ 
-                       A.USERNAME ,
-                       CASE B.RN_FLAG WHEN '0' THEN 'N' WHEN '1' THEN 'Y' END AS READ_ONLY,
-                       CASE A.ACCOUNT_STATUS WHEN 'LOCKED' THEN '锁定' WHEN 'OPEN' THEN '正常' ELSE '异常' END AS ACCOUNT_STATUS,
-                       TO_CHAR(A.EXPIRY_DATE,'YYYY-MM-DD HH24:MI:SS') AS EXPIRY_DATE,
-                       to_char(round(datediff(DAY,TO_CHAR(sysdate,'YYYY-MM-DD HH24:MI:SS'),TO_CHAR(A.EXPIRY_DATE,'YYYY-MM-DD HH24:MI:SS')),2)) AS EXPIRY_DATE_DAY,
-                       A.DEFAULT_TABLESPACE,
-                       A.PROFILE,
-                       TO_CHAR(A.CREATED,'YYYY-MM-DD HH24:MI:SS') AS CREATE_TIME
-                  FROM DBA_USERS A, 
-                       SYSUSERS B 
-                 WHERE A.USER_ID=B.ID and A.USERNAME NOT IN('SYS','SYSSSO','SYSAUDITOR')`
+       /*+DM_EXPORTER*/ 
+       A.USERNAME ,
+       NULL AS RN_FLAG,
+       CASE WHEN A.ACCOUNT_STATUS = 'OPEN' THEN 0 ELSE 1 END AS ACCOUNT_STATUS,
+       TO_CHAR(A.EXPIRY_DATE,'YYYY-MM-DD HH24:MI:SS') AS EXPIRY_DATE,
+       to_char(round(datediff(DAY,TO_CHAR(sysdate,'YYYY-MM-DD HH24:MI:SS'),TO_CHAR(A.EXPIRY_DATE,'YYYY-MM-DD HH24:MI:SS')),2)) AS EXPIRY_DATE_DAY,
+       A.DEFAULT_TABLESPACE,
+       A.PROFILE,
+       TO_CHAR(A.CREATED,'YYYY-MM-DD HH24:MI:SS') AS CREATE_TIME
+  FROM DBA_USERS A
+ WHERE A.USERNAME NOT IN('SYS','SYSSSO','SYSAUDITOR');`
 	//查询数据库授权信息
 	QueryDbGrantInfoSql = `SELECT /*+DM_EXPORTER*/ CASE WHEN expired_date IS NULL THEN '' ELSE TO_CHAR(expired_date, 'yyyyMMdd')  END AS expired_date FROM V$LICENSE`
 	//查询主备库的同步堆积信息
