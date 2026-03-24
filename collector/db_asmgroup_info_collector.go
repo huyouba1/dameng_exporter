@@ -28,7 +28,7 @@ type asmGroupInfo struct {
 	usedPct   sql.NullFloat64
 }
 
-// AsmGroupInfoCollector 采集ASM磁盘组总量、剩余量、使用率。
+// AsmGroupInfoCollector 采集 ASM 磁盘组总量、剩余量和使用率。
 type AsmGroupInfoCollector struct {
 	db *sql.DB
 
@@ -37,8 +37,10 @@ type AsmGroupInfoCollector struct {
 	usedPctDesc *prometheus.Desc
 	dataSource  string
 
-	viewCheckOnce sync.Once
-	viewExists    bool
+	viewCheckOnce    sync.Once
+	viewExists       bool
+	columnCheckOnce  sync.Once
+	typeColumnExists bool
 }
 
 // SetDataSource 实现 DataSourceAware 接口。
@@ -67,7 +69,8 @@ func NewAsmGroupInfoCollector(db *sql.DB) MetricCollector {
 			[]string{"group_name", "group_id", "type"},
 			nil,
 		),
-		viewExists: true,
+		viewExists:       true,
+		typeColumnExists: true,
 	}
 }
 
@@ -85,7 +88,7 @@ func (c *AsmGroupInfoCollector) Collect(ch chan<- prometheus.Metric) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(config.Global.GetQueryTimeout())*time.Second)
 	defer cancel()
 
-	if !c.checkAsmGroupViewExists(ctx) {
+	if !c.checkAsmGroupViewExists(ctx) || !c.checkAsmGroupTypeColumnExists(ctx) {
 		return
 	}
 
@@ -157,4 +160,21 @@ func (c *AsmGroupInfoCollector) checkAsmGroupViewExists(ctx context.Context) boo
 		}
 	})
 	return c.viewExists
+}
+
+// checkAsmGroupTypeColumnExists 检查 V$ASMGROUP 视图中的 TYPE 字段是否存在，缺失时跳过 ASM 组指标采集。
+func (c *AsmGroupInfoCollector) checkAsmGroupTypeColumnExists(ctx context.Context) bool {
+	c.columnCheckOnce.Do(func() {
+		var count int
+		if err := c.db.QueryRowContext(ctx, config.QueryAsmGroupTypeColumnExistsSqlStr).Scan(&count); err != nil {
+			logger.Logger.Warnf("[%s] Failed to check V$ASMGROUP.TYPE column existence: %v", c.dataSource, err)
+			c.typeColumnExists = false
+			return
+		}
+		c.typeColumnExists = count > 0
+		if !c.typeColumnExists {
+			logger.Logger.Infof("[%s] V$ASMGROUP.TYPE column not found, skip ASM group metrics", c.dataSource)
+		}
+	})
+	return c.typeColumnExists
 }

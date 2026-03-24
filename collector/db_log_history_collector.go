@@ -6,19 +6,22 @@ import (
 	"dameng_exporter/logger"
 	"dameng_exporter/utils"
 	"database/sql"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// DbLogHistoryCollector 负责暴露 redo 日志切换时间相关指标
+// DbLogHistoryCollector 负责暴露 redo 日志切换时间相关指标。
 type DbLogHistoryCollector struct {
 	db                     *sql.DB
 	dataSource             string
 	redoLastSwitchTimeDesc *prometheus.Desc
+	viewCheckOnce          sync.Once
+	viewExists             bool
 }
 
-// NewDbLogHistoryCollector 返回 redo 日志切换指标采集器实例
+// NewDbLogHistoryCollector 返回 redo 日志切换指标采集器实例。
 func NewDbLogHistoryCollector(db *sql.DB) MetricCollector {
 	return &DbLogHistoryCollector{
 		db: db,
@@ -28,6 +31,7 @@ func NewDbLogHistoryCollector(db *sql.DB) MetricCollector {
 			[]string{},
 			nil,
 		),
+		viewExists: true,
 	}
 }
 
@@ -35,23 +39,24 @@ func (c *DbLogHistoryCollector) SetDataSource(name string) {
 	c.dataSource = name
 }
 
-// Describe 实现 Prometheus Collector 接口，输出指标描述
+// Describe 实现 Prometheus Collector 接口，输出指标描述。
 func (c *DbLogHistoryCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.redoLastSwitchTimeDesc
 }
 
-// Collect 从 V$LOG_HISTORY 采样并计算指标值
+// Collect 从 V$LOG_HISTORY 采样并计算指标值。
 func (c *DbLogHistoryCollector) Collect(ch chan<- prometheus.Metric) {
-	// 1. 快速校验数据库连接是否可用，避免因连接异常导致采集阻塞
 	if err := utils.CheckDBConnectionWithSource(c.db, c.dataSource); err != nil {
 		return
 	}
 
-	// 2. 根据查询超时配置创建上下文，限制对 V$LOG_HISTORY 的访问时间
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(config.Global.GetQueryTimeout())*time.Second)
 	defer cancel()
 
-	// 3. 查询最新一条 redo 切换记录
+	if !c.checkLogHistoryViewExists(ctx) {
+		return
+	}
+
 	var rectime sql.NullString
 	err := c.db.QueryRowContext(ctx, config.QueryRedoLogHistorySql).Scan(&rectime)
 	if err != nil {
@@ -69,6 +74,22 @@ func (c *DbLogHistoryCollector) Collect(ch chan<- prometheus.Metric) {
 		lastSwitchTime = 0
 	}
 
-	// 4. 暴露指标，值为最新切换时间（秒），用于在仪表盘端计算与当前时间的间隔
 	ch <- prometheus.MustNewConstMetric(c.redoLastSwitchTimeDesc, prometheus.GaugeValue, lastSwitchTime)
+}
+
+// checkLogHistoryViewExists 检查 V$LOG_HISTORY 视图是否存在，缺失时跳过 redo 日志历史指标采集。
+func (c *DbLogHistoryCollector) checkLogHistoryViewExists(ctx context.Context) bool {
+	c.viewCheckOnce.Do(func() {
+		var count int
+		if err := c.db.QueryRowContext(ctx, config.QueryRedoLogHistoryViewExistsSql).Scan(&count); err != nil {
+			logger.Logger.Warnf("[%s] Failed to check V$LOG_HISTORY view existence: %v", c.dataSource, err)
+			c.viewExists = false
+			return
+		}
+		c.viewExists = count > 0
+		if !c.viewExists {
+			logger.Logger.Infof("[%s] V$LOG_HISTORY view not found, skip redo log history metrics", c.dataSource)
+		}
+	})
+	return c.viewExists
 }
