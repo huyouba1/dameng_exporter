@@ -51,6 +51,8 @@ const (
 	dmdbms_arch_status_info              string = "dmdbms_arch_status_info"
 	dmdbms_arch_send_detail_info         string = "dmdbms_arch_send_detail_info"
 	dmdbms_arch_send_diff_value          string = "dmdbms_arch_send_diff_value"
+	// dmdbms_arch_send_last_code 表示归档最后一次发送的返回码。
+	dmdbms_arch_send_last_code           string = "dmdbms_arch_send_last_code"
 	dmdbms_arch_queue_waiting_info       string = "dmdbms_arch_queue_waiting_info"
 	dmdbms_start_day                     string = "dmdbms_start_day"
 	dmdbms_redo_last_switch_time_seconds string = "dmdbms_redo_last_switch_time_seconds"

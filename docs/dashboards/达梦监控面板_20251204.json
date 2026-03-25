@@ -1,4 +1,4 @@
-{
+﻿{
   "__inputs": [
     {
       "name": "DS_PROMETHEUS",
@@ -1002,7 +1002,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "查询V$ARCH_STATUS.ARCH_STATUS字段，VALID=1, INVALID=0",
+      "description": "查询V$ARCH_STATUS视图 dmdbms_arch_status，状态值：INVALID=0，VALID=1，ASYNC_SEND=2，UNKNOWN=-2，NO_ENABLE=-1",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1011,19 +1011,31 @@
           "mappings": [
             {
               "options": {
-                "1": {
+                "0": {
                   "index": 1,
-                  "text": "正常"
+                  "text": "无效",
+                  "color": "red"
+                },
+                "1": {
+                  "index": 2,
+                  "text": "有效",
+                  "color": "green"
                 },
                 "2": {
-                  "index": 2,
-                  "text": "异常"
+                  "index": 3,
+                  "text": "异步发送",
+                  "color": "yellow"
+                },
+                "-2": {
+                  "index": 4,
+                  "text": "未知",
+                  "color": "orange"
                 },
                 "-1": {
                   "index": 0,
-                  "text": "未开启"
-                }
-              },
+                  "text": "未开启",
+                  "color": "blue"
+                }               },
               "type": "value"
             }
           ],
@@ -3398,16 +3410,7 @@
                 "id": "mappings",
                 "value": [
                   {
-                    "options": {
-                      "0": {
-                        "index": 1,
-                        "text": "关闭"
-                      },
-                      "1": {
-                        "index": 0,
-                        "text": "打开"
-                      }
-                    },
+                    "options": {"0": {"index": 1,"text": "关闭"},"1": {"index": 0,"text": "打开"}},
                     "type": "value"
                   }
                 ]
@@ -3714,16 +3717,8 @@
                 "id": "mappings",
                 "value": [
                   {
-                    "options": {
-                      "0": {
-                        "index": 1,
-                        "text": "关闭"
-                      },
-                      "1": {
-                        "index": 0,
-                        "text": "打开"
-                      }
-                    },
+                    "options": {"0": {"index": 1,"text": "关闭"},
+                      "1": {"index": 0,"text": "打开"}},
                     "type": "value"
                   }
                 ]
@@ -3991,7 +3986,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "查询V$ARCH_STATUS.ARCH_STATUS字段，VALID=1, INVALID=0",
+      "description": "查询 dmdbms_arch_status_info，状态值：INVALID=0，VALID=1，ASYNC_SEND=2，UNKNOWN=-2",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -4038,6 +4033,14 @@
                       "1": {
                         "index": 0,
                         "text": "有效"
+                      },
+                      "2": {
+                        "index": 2,
+                        "text": "异步发送"
+                      },
+                      "-2": {
+                        "index": 3,
+                        "text": "未知"
                       }
                     },
                     "type": "value"
@@ -4794,3 +4797,11 @@
   "version": 35,
   "weekStart": ""
 }
+
+
+
+
+
+
+
+

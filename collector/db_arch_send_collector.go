@@ -7,6 +7,7 @@ import (
 	"dameng_exporter/utils"
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -15,33 +16,36 @@ import (
 	"go.uber.org/zap"
 )
 
-// DbArchSendDetailInfo 归档发送详情信息
+// DbArchSendDetailInfo 表示单个归档目的地的发送详情。
 type DbArchSendDetailInfo struct {
 	archDest sql.NullString
 	archType sql.NullString
 	lsnDiff  sql.NullFloat64
+	// lastSendCode 对应 V$ARCH_SEND_INFO.LAST_SEND_CODE，用于归档同步异常告警。
+	lastSendCode sql.NullFloat64
 }
 
-// DbArchSendCollector 归档发送监控采集器
+// DbArchSendCollector 负责采集归档发送差值和发送返回码。
 type DbArchSendCollector struct {
 	db                 *sql.DB
-	archSendDetailInfo *prometheus.Desc // 归档发送详情
-	archSendDiffValue  *prometheus.Desc // 归档发送差值
-	dataSource         string           // 数据源名称
+	archSendDetailInfo *prometheus.Desc
+	archSendDiffValue  *prometheus.Desc
+	// archSendLastCode 暴露 LAST_SEND_CODE 原始返回码。
+	archSendLastCode *prometheus.Desc
+	dataSource       string
 
-	// 每个实例独立的视图检查缓存
 	archSendFieldsCheckOnce sync.Once
 	archSendFieldsExist     bool
 	archApplyInfoCheckOnce  sync.Once
 	archApplyInfoExists     bool
 }
 
-// SetDataSource 实现DataSourceAware接口
+// SetDataSource 实现 DataSourceAware 接口。
 func (c *DbArchSendCollector) SetDataSource(name string) {
 	c.dataSource = name
 }
 
-// NewDbArchSendCollector 初始化归档发送监控采集器
+// NewDbArchSendCollector 初始化归档发送采集器。
 func NewDbArchSendCollector(db *sql.DB) MetricCollector {
 	return &DbArchSendCollector{
 		db: db,
@@ -57,12 +61,19 @@ func NewDbArchSendCollector(db *sql.DB) MetricCollector {
 			[]string{"arch_type", "arch_dest"},
 			nil,
 		),
+		archSendLastCode: prometheus.NewDesc(
+			dmdbms_arch_send_last_code,
+			"Information about DM database archive send last code, return LAST_SEND_CODE",
+			[]string{"arch_type", "arch_dest"},
+			nil,
+		),
 	}
 }
 
 func (c *DbArchSendCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.archSendDetailInfo
 	ch <- c.archSendDiffValue
+	ch <- c.archSendLastCode
 }
 
 func (c *DbArchSendCollector) Collect(ch chan<- prometheus.Metric) {
@@ -73,13 +84,11 @@ func (c *DbArchSendCollector) Collect(ch chan<- prometheus.Metric) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(config.Global.GetQueryTimeout())*time.Second)
 	defer cancel()
 
-	// 快速检查归档是否开启
-	if !c.isArchiveEnabled(ctx) {
-		// 归档未开启时，不采集发送相关指标
+	// 这里只判断归档是否已开启，不要求本地状态必须为 VALID。
+	if !c.isArchiveConfigured(ctx) {
 		return
 	}
 
-	// 查询所有归档发送详情信息
 	dbArchSendInfos, err := c.getDbArchSendDetailInfo(ctx, c.db)
 	if err != nil {
 		logger.Logger.Error(fmt.Sprintf("[%s] exec getDbArchSendDetailInfo func error", c.dataSource), zap.Error(err))
@@ -91,7 +100,6 @@ func (c *DbArchSendCollector) Collect(ch chan<- prometheus.Metric) {
 		archDest := utils.NullStringToString(dbArchSendInfo.archDest)
 		lsnDiff := utils.NullFloat64ToFloat64(dbArchSendInfo.lsnDiff)
 
-		// 发送详情指标（优化后：仅保留arch_type和arch_dest标签）
 		ch <- prometheus.MustNewConstMetric(
 			c.archSendDetailInfo,
 			prometheus.GaugeValue,
@@ -106,11 +114,21 @@ func (c *DbArchSendCollector) Collect(ch chan<- prometheus.Metric) {
 			lsnDiff,
 			archType, archDest,
 		)
+
+		// 仅在字段存在且值有效时输出 LAST_SEND_CODE。
+		if dbArchSendInfo.lastSendCode.Valid {
+			ch <- prometheus.MustNewConstMetric(
+				c.archSendLastCode,
+				prometheus.GaugeValue,
+				dbArchSendInfo.lastSendCode.Float64,
+				archType, archDest,
+			)
+		}
 	}
 }
 
-// isArchiveEnabled 快速检查归档是否开启
-func (c *DbArchSendCollector) isArchiveEnabled(ctx context.Context) bool {
+// isArchiveConfigured 仅检查是否开启归档配置，不再要求状态必须为 VALID。
+func (c *DbArchSendCollector) isArchiveConfigured(ctx context.Context) bool {
 	var paraValue string
 	query := `SELECT /*+DMDB_CHECK_FLAG*/ PARA_VALUE FROM v$dm_ini WHERE para_name='ARCH_INI'`
 	err := c.db.QueryRowContext(ctx, query).Scan(&paraValue)
@@ -119,23 +137,10 @@ func (c *DbArchSendCollector) isArchiveEnabled(ctx context.Context) bool {
 		return false
 	}
 
-	if paraValue != "1" {
-		return false
-	}
-
-	// 进一步检查归档状态是否VALID
-	var archStatus string
-	query = `SELECT /*+DMDB_CHECK_FLAG*/ CASE arch_status WHEN 'VALID' THEN '1' WHEN 'INVALID' THEN '0' END FROM v$arch_status WHERE arch_type='LOCAL'`
-	err = c.db.QueryRowContext(ctx, query).Scan(&archStatus)
-	if err != nil {
-		logger.Logger.Debugf("[%s] Failed to check archive validity: %v", c.dataSource, err)
-		return false
-	}
-
-	return archStatus == "1"
+	return paraValue == "1"
 }
 
-// checkArchSendInfoFields 检查V$ARCH_SEND_INFO视图中的特定字段是否存在
+// checkArchSendInfoFields 检查发送视图是否包含 LAST_SEND_CODE/LAST_SEND_DESC 字段。
 func (c *DbArchSendCollector) checkArchSendInfoFields(ctx context.Context) bool {
 	c.archSendFieldsCheckOnce.Do(func() {
 		var count int
@@ -144,14 +149,13 @@ func (c *DbArchSendCollector) checkArchSendInfoFields(ctx context.Context) bool 
 			c.archSendFieldsExist = false
 			return
 		}
-		// 如果count为2，说明两个字段都存在
 		c.archSendFieldsExist = count == 2
-		logger.Logger.Debugf("[%s] V$ARCH_SEND_INFO fields exist: %v (LAST_SEND_CODE，LAST_SEND_DESC)", c.dataSource, c.archSendFieldsExist)
+		logger.Logger.Debugf("[%s] V$ARCH_SEND_INFO fields exist: %v (LAST_SEND_CODE, LAST_SEND_DESC)", c.dataSource, c.archSendFieldsExist)
 	})
 	return c.archSendFieldsExist
 }
 
-// checkArchApplyInfoExists 检查V$ARCH_APPLY_INFO视图是否存在
+// checkArchApplyInfoExists 检查 V$ARCH_APPLY_INFO 视图是否存在。
 func (c *DbArchSendCollector) checkArchApplyInfoExists(ctx context.Context) bool {
 	c.archApplyInfoCheckOnce.Do(func() {
 		var count int
@@ -166,19 +170,19 @@ func (c *DbArchSendCollector) checkArchApplyInfoExists(ctx context.Context) bool
 	return c.archApplyInfoExists
 }
 
-// getDbArchSendDetailInfo 查询所有归档发送详情信息
+// getDbArchSendDetailInfo 查询所有归档目的地的发送详情。
 func (c *DbArchSendCollector) getDbArchSendDetailInfo(ctx context.Context, db *sql.DB) ([]DbArchSendDetailInfo, error) {
-	// 根据视图存在性选择合适的查询SQL
 	var querySql string
+	// 记录当前版本是否支持 LAST_SEND_CODE/LAST_SEND_DESC 字段。
+	hasLastSendFields := c.checkArchSendInfoFields(ctx)
 	if c.checkArchApplyInfoExists(ctx) {
 		querySql = config.QueryArchSendDetailInfo2
 	} else {
 		querySql = config.QueryArchSendDetailInfo
 	}
 
-	// 检查V$ARCH_SEND_INFO视图中的字段是否存在
-	if !c.checkArchSendInfoFields(ctx) {
-		// 如果字段不存在，将相关字段替换为空字符串
+	// 老版本缺少字段时，用空字符串占位并跳过返回码指标输出。
+	if !hasLastSendFields {
 		querySql = strings.ReplaceAll(querySql, "LAST_SEND_CODE,", "'' AS LAST_SEND_CODE,")
 		querySql = strings.ReplaceAll(querySql, "LAST_SEND_DESC,", "'' AS LAST_SEND_DESC,")
 	}
@@ -193,15 +197,24 @@ func (c *DbArchSendCollector) getDbArchSendDetailInfo(ctx context.Context, db *s
 
 	for rows.Next() {
 		var dbArchSendDetailInfo DbArchSendDetailInfo
-		// 跳过不需要的字段
-		var lastSendCode, lastSendDesc, lastStartTime, lastEndTime, lastSendTime sql.NullString
+		var lastSendCodeText, lastSendDesc, lastStartTime, lastEndTime, lastSendTime sql.NullString
 		if err := rows.Scan(&dbArchSendDetailInfo.archDest, &dbArchSendDetailInfo.archType,
-			&dbArchSendDetailInfo.lsnDiff, &lastSendCode,
+			&dbArchSendDetailInfo.lsnDiff, &lastSendCodeText,
 			&lastSendDesc, &lastStartTime,
 			&lastEndTime, &lastSendTime); err != nil {
 			logger.Logger.Error(fmt.Sprintf("[%s] Error scanning row", c.dataSource), zap.Error(err))
 			continue
 		}
+
+		// 仅在字段存在且值非空时解析 LAST_SEND_CODE。
+		if hasLastSendFields && lastSendCodeText.Valid {
+			if lastSendCode, err := strconv.ParseFloat(lastSendCodeText.String, 64); err == nil {
+				dbArchSendDetailInfo.lastSendCode = sql.NullFloat64{Float64: lastSendCode, Valid: true}
+			} else {
+				logger.Logger.Warn(fmt.Sprintf("[%s] Failed to parse LAST_SEND_CODE: %s", c.dataSource, lastSendCodeText.String), zap.Error(err))
+			}
+		}
+
 		dbArchSendDetailInfos = append(dbArchSendDetailInfos, dbArchSendDetailInfo)
 	}
 
