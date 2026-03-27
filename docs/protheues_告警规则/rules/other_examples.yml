@@ -90,3 +90,12 @@ groups:
       annotations:
         description: "数据源：{{ $labels.datasource }} 在最近 3 分钟内未采集到 dmdbms_mode_info，可能是接口异常、查询失败或采集链路问题。"
         summary: "数据源：{{ $labels.datasource }} 的实例模式指标缺失"
+        
+    - alert: 归档同步异常
+      expr: max by(datasource,env,region,cluster,arch_type,arch_dest) (dmdbms_arch_status_info == 0) or on(datasource,env,region,cluster,arch_type,arch_dest) (dmdbms_arch_send_last_code < 0)
+      for: 1m
+      labels:
+        severity: warning
+      annotations:
+        description: "数据源：{{ $labels.datasource }} 归档目的地：{{ $labels.arch_dest }} 状态为 INVALID，或 LAST_SEND_CODE 小于 0，表示归档同步异常；"
+        summary: "数据源：{{ $labels.datasource }} 归档目的地 {{ $labels.arch_dest }} 发生归档同步异常"

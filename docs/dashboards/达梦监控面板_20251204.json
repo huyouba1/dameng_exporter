@@ -3986,7 +3986,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "查询 dmdbms_arch_status_info，状态值：INVALID=0，VALID=1，ASYNC_SEND=2，UNKNOWN=-2",
+      "description": "查询 dmdbms_arch_status_info，状态值：INVALID=0，VALID=1，ASYNC_SEND=2，UNKNOWN=-2，EMPTY_OR_NULL=-3",
       "fieldConfig": {
         "defaults": {
           "color": {

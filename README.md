@@ -90,15 +90,15 @@ dameng_exporter/
 
 ```bash
 # Linux AMD64
-wget https://github.com/gaoyuan98/dameng_exporter/releases/download/v1.2.5_20260320/dameng_exporter_v1.2.5_20260320_linux_amd64.tar.gz
-tar -xzf dameng_exporter_v1.2.5_20260320_linux_amd64.tar.gz
+wget https://github.com/gaoyuan98/dameng_exporter/releases/download/v1.2.5_20260327/dameng_exporter_v1.2.5_20260327_linux_amd64.tar.gz
+tar -xzf dameng_exporter_v1.2.5_20260327_linux_amd64.tar.gz
 
 # Linux ARM64
-wget https://github.com/gaoyuan98/dameng_exporter/releases/download/v1.2.5_20260320/dameng_exporter_v1.2.5_20260320_linux_arm64.tar.gz
-tar -xzf dameng_exporter_v1.2.5_20260320_linux_arm64.tar.gz
+wget https://github.com/gaoyuan98/dameng_exporter/releases/download/v1.2.5_20260327/dameng_exporter_v1.2.5_20260327_linux_arm64.tar.gz
+tar -xzf dameng_exporter_v1.2.5_20260327_linux_arm64.tar.gz
 
 # Windows AMD64
-# 下载 dameng_exporter_v1.2.5_20260320_windows_amd64.tar.gz 并解压
+# 下载 dameng_exporter_v1.2.5_20260327_windows_amd64.tar.gz 并解压
 ```
 <!-- AUTO_UPDATING_DOWNLOADS_END -->
 
@@ -208,7 +208,6 @@ GRANT SELECT ON V$DSC_EP_INFO TO MONITOR_USER;
 GRANT SELECT ON DPC_INSTANCE TO MONITOR_USER;
 GRANT SELECT ON v$dm_mal_ini TO MONITOR_USER;
 GRANT SELECT ON V$ASMGROUP TO MONITOR_USER;
-GRANT SELECT ON SYSUSER$ TO MONITOR_USER;
 ```
 
 ### 步骤 2：部署 Exporter

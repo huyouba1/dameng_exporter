@@ -15,7 +15,8 @@ import (
 
 const (
 	// DB_ARCH_NO_ENABLE 表示数据库未启用归档。
-	DB_ARCH_NO_ENABLE = -1
+	DB_ARCH_NO_ENABLE     = -1
+	DB_ARCH_EMPTY_OR_NULL = -3
 	// DB_ARCH_UNKNOWN 表示遇到当前版本未识别的归档状态。
 	DB_ARCH_UNKNOWN = -2
 	// DB_ARCH_INVALID 表示本地归档状态无效。
@@ -59,7 +60,7 @@ func NewDbArchStatusCollector(db *sql.DB) MetricCollector {
 		),
 		archStatusInfo: prometheus.NewDesc(
 			dmdbms_arch_status_info,
-			"Information about DM database archive status detail, value info: invalid = 0, valid = 1, async_send = 2, unknown = -2",
+			"Information about DM database archive status detail, value info: invalid = 0, valid = 1, async_send = 2, unknown = -2, empty_or_null = -3",
 			[]string{"arch_type", "arch_dest", "arch_src"},
 			nil,
 		),
