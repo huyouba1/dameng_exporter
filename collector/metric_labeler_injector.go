@@ -31,6 +31,23 @@ func NewLabelInjectorFromPool(pool *db.DataSourcePool) *LabelInjector {
 	}
 }
 
+// NewLabelInjectorFromLabels 从已有标签构建注入器，确保包含 datasource 标签
+func NewLabelInjectorFromLabels(labels map[string]string, datasourceName string) *LabelInjector {
+	cloned := make(map[string]string)
+	for k, v := range labels {
+		cloned[k] = v
+	}
+	if dsLabel, ok := cloned["datasource"]; !ok || dsLabel == "" {
+		if datasourceName != "" {
+			cloned["datasource"] = datasourceName
+		}
+	}
+	return &LabelInjector{
+		dataSourceName: datasourceName,
+		labels:         cloned,
+	}
+}
+
 // GetLabels 获取标签映射
 func (li *LabelInjector) GetLabels() map[string]string {
 	return li.labels

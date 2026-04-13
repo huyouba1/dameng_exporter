@@ -12,18 +12,22 @@ var (
 )
 
 const (
-	dameng_exporter_build_info        string = "dameng_exporter_build_info"
-	dmdbms_tablespace_file_total_info string = "dmdbms_tablespace_file_total_info"
-	dmdbms_tablespace_file_free_info  string = "dmdbms_tablespace_file_free_info"
-	dmdbms_tablespace_size_total_info string = "dmdbms_tablespace_size_total_info"
-	dmdbms_tablespace_size_free_info  string = "dmdbms_tablespace_size_free_info"
-	dmdbms_start_time_info            string = "dmdbms_start_time_info"
-	dmdbms_status_info                string = "dmdbms_status_info"
-	dmdbms_mode_info                  string = "dmdbms_mode_info"
-	dmdbms_trx_num_info               string = "dmdbms_trx_num_info"
-	dmdbms_dead_lock_num_total        string = "dmdbms_dead_lock_num_total"
-	dmdbms_thread_num_info            string = "dmdbms_thread_num_info"
-	dmdbms_switching_occurs           string = "dmdbms_switching_occurs"
+	dameng_exporter_build_info              string = "dameng_exporter_build_info"
+	dmdbms_tablespace_file_total_info       string = "dmdbms_tablespace_file_total_info"
+	dmdbms_tablespace_file_free_info        string = "dmdbms_tablespace_file_free_info"
+	dmdbms_tablespace_size_total_info       string = "dmdbms_tablespace_size_total_info"
+	dmdbms_tablespace_size_free_info        string = "dmdbms_tablespace_size_free_info"
+	dmdbms_tablespace_size_act_used_rt_info string = "dmdbms_tablespace_size_act_used_rt_info"
+	dmdbms_asmgroup_size_total_info         string = "dmdbms_asmgroup_size_total_info"
+	dmdbms_asmgroup_size_free_info          string = "dmdbms_asmgroup_size_free_info"
+	dmdbms_asmgroup_size_used_pct_info      string = "dmdbms_asmgroup_size_used_pct_info"
+	dmdbms_start_time_info                  string = "dmdbms_start_time_info"
+	dmdbms_status_info                      string = "dmdbms_status_info"
+	dmdbms_mode_info                        string = "dmdbms_mode_info"
+	dmdbms_trx_num_info                     string = "dmdbms_trx_num_info"
+	dmdbms_dead_lock_num_total              string = "dmdbms_dead_lock_num_total"
+	dmdbms_thread_num_info                  string = "dmdbms_thread_num_info"
+	dmdbms_switching_occurs                 string = "dmdbms_switching_occurs"
 
 	dmdbms_memory_curr_pool_info  string = "dmdbms_memory_curr_pool_info"
 	dmdbms_memory_total_pool_info string = "dmdbms_memory_total_pool_info"
@@ -47,6 +51,8 @@ const (
 	dmdbms_arch_status_info              string = "dmdbms_arch_status_info"
 	dmdbms_arch_send_detail_info         string = "dmdbms_arch_send_detail_info"
 	dmdbms_arch_send_diff_value          string = "dmdbms_arch_send_diff_value"
+	// dmdbms_arch_send_last_code 表示归档最后一次发送的返回码。
+	dmdbms_arch_send_last_code           string = "dmdbms_arch_send_last_code"
 	dmdbms_arch_queue_waiting_info       string = "dmdbms_arch_queue_waiting_info"
 	dmdbms_start_day                     string = "dmdbms_start_day"
 	dmdbms_redo_last_switch_time_seconds string = "dmdbms_redo_last_switch_time_seconds"
@@ -79,6 +85,9 @@ const (
 
 	// 数据字典缓存指标
 	dmdbms_dict_cache_total string = "dmdbms_dict_cache_total"
+
+	// 数据库节点类型
+	dmdbms_node_type_info string = "dmdbms_node_type_info"
 
 	dmdb_up string = "dmdb_up"
 )

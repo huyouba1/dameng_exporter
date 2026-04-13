@@ -40,7 +40,7 @@ func NewDbUserCollector(db *sql.DB) MetricCollector {
 		db: db,
 		userListInfoDesc: prometheus.NewDesc(
 			dmdbms_user_list_info,
-			"Information about DM database users",
+			"Information about DM database users, value info: OPEN = 0, others = 1",
 			[]string{"username", "read_only", "expiry_date", "expiry_date_day", "default_tablespace", "profile", "create_time"},
 			nil,
 		),
@@ -92,10 +92,9 @@ func (c *DbUserCollector) Collect(ch chan<- prometheus.Metric) {
 		profile := utils.NullStringToString(info.Profile)
 		createTime := utils.NullStringToString(info.CreateTime)
 
-		// 判断 AccountStatus 的值
-		accountStatusValue := 0.0
-		if utils.NullStringToString(info.AccountStatus) == "锁定" {
-			accountStatusValue = 1.0
+		accountStatusValue := 1.0
+		if utils.NullStringToString(info.AccountStatus) == "0" {
+			accountStatusValue = 0.0
 		}
 
 		ch <- prometheus.MustNewConstMetric(

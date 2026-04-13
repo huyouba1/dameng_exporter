@@ -17,14 +17,16 @@ groups:
     annotations:
       description: "数据源：{{ $labels.datasource }} 数据库实例不可用"
       summary: "数据源：{{ $labels.datasource }}:dmdb_up=0，数据库实例宕机，请立即处理"
-  - alert: 集群发生切换
-    expr: dmdbms_switching_occurs == 0
-    for: 15s
+
+  - alert: 达梦实例模式发生切换
+    expr: changes(dmdbms_mode_info[2m]) > 0
+    for: 0s
     labels:
-      severity: 严重
+      severity: 警告
     annotations:
-      description: "数据源：{{ $labels.datasource }} 数据库模式切换"
-      summary: "数据源：{{ $labels.datasource }}:数据库发生模式切换，疑似发生集群切换请核实"
+      description: "数据源：{{ $labels.datasource }} 实例模式在最近 2 分钟内发生变化，请确认是否为主备切换或角色切换。"
+      summary: "数据源：{{ $labels.datasource }} 检测到实例模式切换"
+
   - alert: 数据库状态转换
     expr: dmdbms_status_info != 1
     for: 15s
@@ -47,7 +49,7 @@ groups:
     labels:
       severity: 警告
     annotations:
-      description: "数据源：{{ $labels.datasource }} 死锁累计值相比上一周期新增"
+      description: "数据源：{{ $labels.datasource }} 发生死锁事件"
       summary: "数据源：{{ $labels.datasource }}:近1分钟新增死锁事件，请确认是否存在锁等待"
   - alert: 数据库存在事务阻塞
     expr: dmdbms_trx_num_info > 0
@@ -55,8 +57,16 @@ groups:
     labels:
       severity: 警告
     annotations:
-      description: "数据源：{{ $labels.datasource }} 数据库存在事务阻塞等待"
-      summary: "数据源：{{ $labels.datasource }}:存在事务阻塞，请及时处理"    
+      description: "数据源：{{ $labels.datasource }} 数据库存在事务阻塞等待，当前阻塞数：{{ printf \"%.0f\" $value }}"
+      summary: "数据源：{{ $labels.datasource }}:存在事务阻塞，当前阻塞数{{ printf \"%.0f\" $value }}，请及时处理"    
+  - alert: 数据库用户被锁定
+    expr: dmdbms_user_list_info == 1
+    for: 15s
+    labels:
+      severity: 警告
+    annotations:
+      description: "数据源：{{ $labels.datasource }} 用户：{{ $labels.username }} 账号已锁定"
+      summary: "数据源：{{ $labels.datasource }}:用户{{ $labels.username }}账号被锁定，请核实"
   - alert: cpu使用率过高
     expr: 100 * (1 - avg(irate(node_cpu_seconds_total{mode="idle"}[2m])) by(instance)) > 80
     for: 15s
@@ -79,8 +89,8 @@ groups:
     labels:
       severity: 警告
     annotations:
-      description: "数据源：{{ $labels.datasource }} 内存池使用率过高"
-      summary: "数据源：{{ $labels.datasource }}:内存池使用率过高，超过80%"
+      description: "数据源：{{ $labels.datasource }} 内存池使用率过高，当前值：{{ printf \"%.2f\" $value }}%"
+      summary: "数据源：{{ $labels.datasource }}:内存池使用率{{ printf \"%.2f\" $value }}%，超过80%"
   - alert: 磁盘分区使用率超过80%
     expr: (node_filesystem_size_bytes{fstype=~"ext.*|xfs|nfs",mountpoint !~".*(pod|docker).*"}-node_filesystem_free_bytes{fstype=~"ext.*|xfs|nfs",mountpoint !~".*(pod|docker).*"}) *100/(node_filesystem_avail_bytes {fstype=~"ext.*|xfs|nfs",mountpoint !~".*(pod|docker).*"}+(node_filesystem_size_bytes{fstype=~"ext.*|xfs|nfs",mountpoint !~".*(pod|docker).*"}-node_filesystem_free_bytes{fstype=~"ext.*|xfs|nfs",mountpoint !~".*(pod|docker).*"})) >90
     for: 15s
@@ -95,21 +105,37 @@ groups:
     labels:
       severity: 警告
     annotations:
-      description: "数据源：{{ $labels.datasource }} 备库重做日志内存堆积使用率超过95%"
-      summary: "数据源：{{ $labels.datasource }}:备库重做日志内存堆积使用率超95%，请确认是否正常"
+      description: "数据源：{{ $labels.datasource }} 备库重做日志内存堆积使用率过高，当前值：{{ printf \"%.2f\" $value }}%"
+      summary: "数据源：{{ $labels.datasource }}:备库重做日志内存堆积使用率{{ printf \"%.2f\" $value }}%，超过95%，请确认是否正常"
   - alert: 备库重做日志线程数
     expr: (((dmdbms_rapply_sys_task_num * 100) / on(datasource,env,region,cluster) dmdbms_parameter_info{param_name="REDOS_BUF_NUM"}) > 95) and on(datasource,env,region,cluster) dmdbms_parameter_info{param_name="REDOS_BUF_NUM"} > 0
     for: 15s
     labels:
       severity: 警告
     annotations:
-      description: "数据源：{{ $labels.datasource }} 备库重做日志线程数使用率超过95%"
-      summary: "数据源：{{ $labels.datasource }}:备库重做日志线程数使用率超95%，请确认是否正常"
+      description: "数据源：{{ $labels.datasource }} 备库重做日志线程数使用率过高，当前值：{{ printf \"%.2f\" $value }}%"
+      summary: "数据源：{{ $labels.datasource }}:备库重做日志线程数使用率{{ printf \"%.2f\" $value }}%，超过95%，请确认是否正常"
   - alert: 表空间使用率超过95%
-    expr: ((dmdbms_tablespace_size_total_info{tablespace_name!~"SYSTEM|TEMP|ROLL"} - dmdbms_tablespace_size_free_info{tablespace_name!~"SYSTEM|TEMP|ROLL"}) / dmdbms_tablespace_size_total_info{tablespace_name!~"SYSTEM|TEMP|ROLL"}) * 100 > 95
+    expr: dmdbms_tablespace_size_act_used_rt_info{tablespace_name!~"SYSTEM|TEMP|ROLL"} > 95
     for: 15s
     labels:
       severity: 警告
     annotations:
-      description: "数据源：{{ $labels.datasource }} 存在表空间使用率超过95%"
-      summary: "数据源：{{ $labels.datasource }}: 存在表空间使用率超过95%，请核实"
+      description: "数据源：{{ $labels.datasource }} 存在表空间使用率过高，当前值：{{ printf \"%.2f\" $value }}%"
+      summary: "数据源：{{ $labels.datasource }}:存在表空间使用率{{ printf \"%.2f\" $value }}%，超过95%，请核实"
+  - alert: ASM磁盘组使用率超过80%
+    expr: dmdbms_asmgroup_size_used_pct_info > 80 and dmdbms_asmgroup_size_used_pct_info <= 90
+    for: 15s
+    labels:
+      severity: 警告
+    annotations:
+      description: "数据源：{{ $labels.datasource }} ASM磁盘组：{{ $labels.group_name }} 使用率过高，当前值：{{ printf \"%.2f\" $value }}%"
+      summary: "数据源：{{ $labels.datasource }}:ASM磁盘组{{ $labels.group_name }}使用率{{ printf \"%.2f\" $value }}%，超过80%"
+  - alert: ASM磁盘组使用率超过90%
+    expr: dmdbms_asmgroup_size_used_pct_info > 90
+    for: 15s
+    labels:
+      severity: 严重
+    annotations:
+      description: "数据源：{{ $labels.datasource }} ASM磁盘组：{{ $labels.group_name }} 使用率过高，当前值：{{ printf \"%.2f\" $value }}%"
+      summary: "数据源：{{ $labels.datasource }}:ASM磁盘组{{ $labels.group_name }}使用率{{ printf \"%.2f\" $value }}%，超过90%"

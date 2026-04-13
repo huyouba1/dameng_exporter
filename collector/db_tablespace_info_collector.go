@@ -14,10 +14,11 @@ import (
 )
 
 type TableSpaceInfoCollector struct {
-	db         *sql.DB
-	totalDesc  *prometheus.Desc
-	freeDesc   *prometheus.Desc
-	dataSource string // 数据源名称
+	db            *sql.DB
+	totalDesc     *prometheus.Desc
+	freeDesc      *prometheus.Desc
+	actUsedRtDesc *prometheus.Desc
+	dataSource    string // 数据源名称
 }
 
 // SetDataSource 实现DataSourceAware接口
@@ -27,8 +28,9 @@ func (c *TableSpaceInfoCollector) SetDataSource(name string) {
 
 type TableSpaceInfo struct {
 	TablespaceName string
-	TotalSize      float64
-	FreeSize       float64
+	TotalSize      float64 // 对应 ASSIGNED_TOTAL_MB
+	FreeSize       float64 // 对应 ASSIGNED_FREE_MB
+	ActUsedRt      float64 // 对应 ACTUSED_RT%
 }
 
 func NewTableSpaceInfoCollector(db *sql.DB) MetricCollector {
@@ -46,12 +48,19 @@ func NewTableSpaceInfoCollector(db *sql.DB) MetricCollector {
 			[]string{"tablespace_name"}, // 添加标签
 			nil,
 		),
+		actUsedRtDesc: prometheus.NewDesc(
+			dmdbms_tablespace_size_act_used_rt_info,
+			"Tablespace actual used rate information",
+			[]string{"tablespace_name"}, // 添加标签
+			nil,
+		),
 	}
 }
 
 func (c *TableSpaceInfoCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.totalDesc
 	ch <- c.freeDesc
+	ch <- c.actUsedRtDesc
 }
 
 func (c *TableSpaceInfoCollector) Collect(ch chan<- prometheus.Metric) {
@@ -74,6 +83,7 @@ func (c *TableSpaceInfoCollector) Collect(ch chan<- prometheus.Metric) {
 			for _, info := range tablespaceInfos {
 				ch <- prometheus.MustNewConstMetric(c.totalDesc, prometheus.GaugeValue, info.TotalSize, info.TablespaceName)
 				ch <- prometheus.MustNewConstMetric(c.freeDesc, prometheus.GaugeValue, info.FreeSize, info.TablespaceName)
+				ch <- prometheus.MustNewConstMetric(c.actUsedRtDesc, prometheus.GaugeValue, info.ActUsedRt, info.TablespaceName)
 			}
 			return
 		}
@@ -95,10 +105,29 @@ func (c *TableSpaceInfoCollector) Collect(ch chan<- prometheus.Metric) {
 
 	for rows.Next() {
 		var info TableSpaceInfo
-		if err := rows.Scan(&info.TablespaceName, &info.TotalSize, &info.FreeSize); err != nil {
+		var assignedTotalMB float64
+		var assignedFreeMB float64
+		var files int64
+		var usedSzRt float64
+		var extensMb float64
+		var totalFreePct float64
+		var actUsedRt float64
+		if err := rows.Scan(
+			&info.TablespaceName,
+			&files,
+			&assignedTotalMB,
+			&assignedFreeMB,
+			&usedSzRt,
+			&extensMb,
+			&totalFreePct,
+			&actUsedRt,
+		); err != nil {
 			logger.Logger.Error(fmt.Sprintf("[%s] Error scanning row", c.dataSource), zap.Error(err))
 			continue
 		}
+		info.TotalSize = assignedTotalMB
+		info.FreeSize = assignedFreeMB
+		info.ActUsedRt = actUsedRt
 		tablespaceInfos = append(tablespaceInfos, info)
 	}
 	if err := rows.Err(); err != nil {
@@ -108,6 +137,7 @@ func (c *TableSpaceInfoCollector) Collect(ch chan<- prometheus.Metric) {
 	for _, info := range tablespaceInfos {
 		ch <- prometheus.MustNewConstMetric(c.totalDesc, prometheus.GaugeValue, info.TotalSize, info.TablespaceName)
 		ch <- prometheus.MustNewConstMetric(c.freeDesc, prometheus.GaugeValue, info.FreeSize, info.TablespaceName)
+		ch <- prometheus.MustNewConstMetric(c.actUsedRtDesc, prometheus.GaugeValue, info.ActUsedRt, info.TablespaceName)
 	}
 
 	// 将 TablespaceInfo 切片序列化为 JSON 字符串

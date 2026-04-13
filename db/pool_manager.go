@@ -26,6 +26,7 @@ type DataSourcePool struct {
 	mu              sync.RWMutex             // 读写锁
 	healthy         atomic.Bool              // 健康状态标志
 	lastHealthCheck atomic.Int64             // 最近一次健康检查的时间戳（Unix 秒）
+	nodeType        string                   // 数据库节点类型（DW/DSC/DPC/DEFAULT）
 }
 
 // markHealthy 更新健康状态为健康并记录时间
@@ -58,6 +59,33 @@ func (p *DataSourcePool) IsHealthy() bool {
 		return false
 	}
 	return p.healthy.Load()
+}
+
+// SetNodeType 设置数据库节点类型
+func (p *DataSourcePool) SetNodeType(nodeType string) {
+	if p == nil {
+		return
+	}
+	if nodeType == "" {
+		nodeType = string(NodeTypeDefault)
+	}
+	p.mu.Lock()
+	p.nodeType = nodeType
+	p.mu.Unlock()
+}
+
+// GetNodeType 获取数据库节点类型
+func (p *DataSourcePool) GetNodeType() string {
+	if p == nil {
+		return string(NodeTypeDefault)
+	}
+	p.mu.RLock()
+	nodeType := p.nodeType
+	p.mu.RUnlock()
+	if nodeType == "" {
+		return string(NodeTypeDefault)
+	}
+	return nodeType
 }
 
 // LastHealthCheck 获取最近一次健康检查的时间
@@ -237,9 +265,6 @@ func (m *DBPoolManager) createPool(dsConfig *config.DataSourceConfig) (*DataSour
 		return nil, fmt.Errorf("测试数据库连接失败: %w", err)
 	}
 
-	// 解析 host、port，供后续标签注入使用
-	cleanHost, hostLabel, portLabel := normalizeDBHost(dsConfig.DbHost)
-
 	// 步骤5：封装成 DataSourcePool 统一管理
 	pool := &DataSourcePool{
 		Name:   dsConfig.Name,
@@ -247,16 +272,16 @@ func (m *DBPoolManager) createPool(dsConfig *config.DataSourceConfig) (*DataSour
 		Config: dsConfig,
 		Labels: dsConfig.ParseLabels(),
 	}
+
+	// 步骤5.1：检测数据库节点类型（不影响连接成功与否）
+	nodeType := DetectNodeType(db, timeoutSeconds, dsConfig.Name)
+	pool.SetNodeType(string(nodeType))
 	pool.markHealthy(time.Now())
 
 	// 步骤6：追加标准化标签，便于指标及日志 tracing
-	datasourceLabel := dsConfig.Name
-	hostForDatasource := formatHostPortLabel(hostLabel, portLabel)
-	if hostForDatasource == "" {
-		hostForDatasource = cleanHost
-	}
-	if hostForDatasource != "" {
-		datasourceLabel = fmt.Sprintf("%s@%s", dsConfig.Name, hostForDatasource)
+	datasourceLabel := BuildDatasourceLabel(dsConfig.Name, dsConfig.DbHost)
+	if datasourceLabel == "" {
+		datasourceLabel = dsConfig.Name
 	}
 	pool.Labels["datasource"] = datasourceLabel
 
@@ -356,6 +381,25 @@ func formatHostPortLabel(host, port string) string {
 		return fmt.Sprintf("[%s]:%s", host, port)
 	}
 	return fmt.Sprintf("%s:%s", host, port)
+}
+
+// BuildDatasourceLabel 构建数据源标签值，规则与连接池创建时保持一致
+func BuildDatasourceLabel(name, dbHost string) string {
+	cleanHost, hostLabel, portLabel := normalizeDBHost(dbHost)
+
+	datasourceLabel := name
+	hostForDatasource := formatHostPortLabel(hostLabel, portLabel)
+	if hostForDatasource == "" {
+		hostForDatasource = cleanHost
+	}
+	if hostForDatasource != "" {
+		if datasourceLabel == "" {
+			datasourceLabel = hostForDatasource
+		} else {
+			datasourceLabel = fmt.Sprintf("%s@%s", name, hostForDatasource)
+		}
+	}
+	return datasourceLabel
 }
 
 // noteFailedDataSourceLocked 在持有锁的情况下登记失败数据源

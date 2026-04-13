@@ -65,8 +65,10 @@ func RegisterMultiSourceCollectors(reg *prometheus.Registry, poolManager *db.DBP
 	// 数据库指标（如果任何数据源需要）
 	if needDatabaseMetrics {
 		// 使用适配器包装所有采集器
+		collectors = append(collectors, NewDbNodeTypeInfoCollector(poolManager))
 		collectors = append(collectors, AdaptCollector(poolManager, NewTableSpaceDateFileInfoCollector))
 		collectors = append(collectors, AdaptCollector(poolManager, NewTableSpaceInfoCollector))
+		collectors = append(collectors, AdaptCollector(poolManager, NewAsmGroupInfoCollector))
 		collectors = append(collectors, AdaptCollector(poolManager, NewDBInstanceRunningInfoCollector))
 		collectors = append(collectors, AdaptCollector(poolManager, NewDbMemoryPoolInfoCollector))
 		collectors = append(collectors, AdaptCollector(poolManager, NewDBSessionsStatusCollector))

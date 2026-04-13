@@ -90,15 +90,15 @@ dameng_exporter/
 
 ```bash
 # Linux AMD64
-wget https://github.com/gaoyuan98/dameng_exporter/releases/download/v1.2.4/dameng_exporter_v1.2.4_linux_amd64.tar.gz
-tar -xzf dameng_exporter_v1.2.4_linux_amd64.tar.gz
+wget https://github.com/gaoyuan98/dameng_exporter/releases/download/v1.2.5_20260327/dameng_exporter_v1.2.5_20260327_linux_amd64.tar.gz
+tar -xzf dameng_exporter_v1.2.5_20260327_linux_amd64.tar.gz
 
 # Linux ARM64
-wget https://github.com/gaoyuan98/dameng_exporter/releases/download/v1.2.4/dameng_exporter_v1.2.4_linux_arm64.tar.gz
-tar -xzf dameng_exporter_v1.2.4_linux_arm64.tar.gz
+wget https://github.com/gaoyuan98/dameng_exporter/releases/download/v1.2.5_20260327/dameng_exporter_v1.2.5_20260327_linux_arm64.tar.gz
+tar -xzf dameng_exporter_v1.2.5_20260327_linux_arm64.tar.gz
 
 # Windows AMD64
-# 下载 dameng_exporter_v1.2.4_windows_amd64.tar.gz 并解压
+# 下载 dameng_exporter_v1.2.5_20260327_windows_amd64.tar.gz 并解压
 ```
 <!-- AUTO_UPDATING_DOWNLOADS_END -->
 
@@ -202,8 +202,12 @@ GRANT SELECT ON V$ARCH_APPLY_INFO TO MONITOR_USER;
 GRANT SELECT ON V$PURGE TO MONITOR_USER;
 GRANT SELECT ON V$DYNAMIC_TABLES TO MONITOR_USER;
 GRANT SELECT ON V$DYNAMIC_TABLE_COLUMNS TO MONITOR_USER;
-GRANT SELECT ON V$DB_CACHE  TO MONITOR_USER;
-GRANT SELECT ON V$ARCH_QUEUE  TO MONITOR_USER;
+GRANT SELECT ON V$DB_CACHE TO MONITOR_USER;
+GRANT SELECT ON V$ARCH_QUEUE TO MONITOR_USER;
+GRANT SELECT ON V$DSC_EP_INFO TO MONITOR_USER;
+GRANT SELECT ON DPC_INSTANCE TO MONITOR_USER;
+GRANT SELECT ON v$dm_mal_ini TO MONITOR_USER;
+GRANT SELECT ON V$ASMGROUP TO MONITOR_USER;
 ```
 
 ### 步骤 2：部署 Exporter
@@ -500,6 +504,20 @@ scrape_configs:
 ---
 
 ## 🔄 更新记录
+## v1.2.5 (2026-04-13)
+1. perf: 废弃掉MaxIdleConns参数,跟maxOpenConns参数值相等，避免每次查询后连接收缩的开销问题
+2. perf: 调整表空间的SQL语句，兼容DSC环境
+3. perf: dmdbms_user_list_info的value值说明lock status = 1,normal status = 0
+4. feat：新增数据库用户被锁定的告警条件规则同时优化部分告警的条件
+5. feat: 新增dmdbms_node_type_info指标,判断数据库节点类型为后续根据节点类型查询不同指标而准备
+6. feat: 新增指标dmdbms_tablespace_size_act_used_rt_info 表空间使用率
+7. feat: 新增ASM磁盘的监控指标dmdbms_asmgroup_size_total_info、dmdbms_asmgroup_size_used_pct_info、dmdbms_asmgroup_size_free_info
+8. perf: 实例切换告警不在使用dmdbms_switching_occurs指标,直接使用dmdbms_mode_info指标进行监控，保持准确性
+9. perf: 调整查询用户列表SQL语句避免因非DBA用户无法赋予视图权限问题(问题：用户只读字段置空)
+10. perf: 优化部分低版本V$LOG_HISTORY、V$ASMGROUP视图中的TYPE字段兼容优化
+11. feat: 新增dmdbms_arch_send_last_code指标归档的最后一次返回码+调整dmdbms_arch_status指标的返回值 invalid = 0, valid = 1, async_send = 2, unknown = -2, no_enable = -1
+12. feat: dmdbms_arch_status_info指标调整非Local为空时设置状态-3
+
 ## v1.2.4 (2026-01-09)
 1. 新增enableHealthPing参数,控制健康的数据源是否定期进行探活，（探活间隔受RetryIntervalSeconds参数控制 默认30s一次）
 2. 完善配置文件加密后的重复写文件逻辑

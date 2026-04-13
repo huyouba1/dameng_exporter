@@ -7,32 +7,32 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// DatasourceHealthCollector 用于暴露每个数据源的健康状态
-type DatasourceHealthCollector struct {
+// DbNodeTypeInfoCollector 暴露数据库节点类型信息
+type DbNodeTypeInfoCollector struct {
 	poolManager *db.DBPoolManager
 	desc        *prometheus.Desc
 }
 
-// NewDatasourceHealthCollector 创建新的数据源状态采集器
-func NewDatasourceHealthCollector(poolManager *db.DBPoolManager) *DatasourceHealthCollector {
-	return &DatasourceHealthCollector{
+// NewDbNodeTypeInfoCollector 创建节点类型采集器
+func NewDbNodeTypeInfoCollector(poolManager *db.DBPoolManager) *DbNodeTypeInfoCollector {
+	return &DbNodeTypeInfoCollector{
 		poolManager: poolManager,
 		desc: prometheus.NewDesc(
-			dmdb_up,
-			"Current health status of the data source, 1 indicates normal, 0 indicates unavailable",
-			[]string{"datasource"},
+			dmdbms_node_type_info,
+			"Database node type information, value is always 1",
+			[]string{"datasource", "node_type"},
 			nil,
 		),
 	}
 }
 
 // Describe 实现 prometheus.Collector 接口
-func (c *DatasourceHealthCollector) Describe(ch chan<- *prometheus.Desc) {
+func (c *DbNodeTypeInfoCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.desc
 }
 
 // Collect 实现 prometheus.Collector 接口
-func (c *DatasourceHealthCollector) Collect(ch chan<- prometheus.Metric) {
+func (c *DbNodeTypeInfoCollector) Collect(ch chan<- prometheus.Metric) {
 	if c == nil || c.poolManager == nil {
 		return
 	}
@@ -44,10 +44,12 @@ func (c *DatasourceHealthCollector) Collect(ch chan<- prometheus.Metric) {
 				continue
 			}
 
-			value := 0.0
-			status := c.poolManager.GetDatasourceHealthStatus(ds.Name)
-			if status.Healthy {
-				value = 1.0
+			nodeType := string(db.NodeTypeDefault)
+			if pool := c.poolManager.GetPool(ds.Name); pool != nil {
+				nodeType = pool.GetNodeType()
+			}
+			if nodeType == "" {
+				nodeType = string(db.NodeTypeDefault)
 			}
 
 			datasourceLabel, injector := buildLabelContextFromConfig(ds)
@@ -55,8 +57,9 @@ func (c *DatasourceHealthCollector) Collect(ch chan<- prometheus.Metric) {
 			metric := prometheus.MustNewConstMetric(
 				c.desc,
 				prometheus.GaugeValue,
-				value,
+				1,
 				datasourceLabel,
+				nodeType,
 			)
 			ch <- NewMetricWrapper(metric, injector)
 		}
@@ -68,11 +71,18 @@ func (c *DatasourceHealthCollector) Collect(ch chan<- prometheus.Metric) {
 			continue
 		}
 		datasourceLabel, injector := buildLabelContextFromPool(pool)
+
+		nodeType := pool.GetNodeType()
+		if nodeType == "" {
+			nodeType = string(db.NodeTypeDefault)
+		}
+
 		metric := prometheus.MustNewConstMetric(
 			c.desc,
 			prometheus.GaugeValue,
 			1,
 			datasourceLabel,
+			nodeType,
 		)
 		ch <- NewMetricWrapper(metric, injector)
 	}
