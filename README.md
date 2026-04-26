@@ -33,6 +33,10 @@
 
 Dameng Exporter 是一个专为达梦数据库（DM8）设计的 Prometheus 监控数据采集器，提供全面的数据库性能指标采集和监控能力。
 
+<img src="./img/readme_architecture_overview.png" alt="Dameng Exporter 多数据源监控架构总览" />
+
+> Dameng Exporter 多数据源监控链路总览：配置多个达梦实例，统一采集指标，暴露给 Prometheus，并在 Grafana 中展示与告警。
+
 ### ✨ 核心特性
 
 - 🚀 **多数据源支持** - 支持同时监控多个达梦数据库实例
